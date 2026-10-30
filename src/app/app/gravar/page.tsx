@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { getScript } from "@/lib/scripts";
+import { APP_VERSION } from "@/lib/config";
 import { loadPrefs, pxPerSecond, savePrefs, type PrompterPrefs } from "@/lib/prefs";
 import { fileNameFor, formatClock, formatSize, saveTake, type Take } from "@/lib/takes";
 import { canShareFiles, shareVideo } from "@/lib/native";
@@ -65,6 +66,7 @@ function Recorder() {
   const [hasMultipleCams, setHasMultipleCams] = useState(false);
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [camSize, setCamSize] = useState("");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -101,7 +103,7 @@ function Recorder() {
   }, [prefs]);
 
   // ---------- câmera ----------
-  const startCamera = useCallback(async (facing: "user" | "environment") => {
+  const startCamera = useCallback(async (facing: "user" | "environment", fov: PrompterPrefs["fov"] = "aberto") => {
     setError(null);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     try {
@@ -110,8 +112,13 @@ function Recorder() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facing,
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          // "aberto" = 4:3, usa o sensor inteiro (câmeras frontais costumam ser 4:3 e
+          // cortam a imagem quando pedimos 16:9). "auto" = deixa o aparelho escolher.
+          ...(fov === "aberto"
+            ? { width: { ideal: 1280 }, height: { ideal: 960 } }
+            : fov === "largo169"
+              ? { width: { ideal: 1280 }, height: { ideal: 720 } }
+              : {}),
           frameRate: { ideal: 30 },
         },
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -153,9 +160,9 @@ function Recorder() {
 
   useEffect(() => {
     if (!prefs) return;
-    startCamera(prefs.facing);
+    startCamera(prefs.facing, prefs.fov);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefs?.facing]);
+  }, [prefs?.facing, prefs?.fov]);
 
   useEffect(() => {
     return () => {
@@ -338,6 +345,8 @@ function Recorder() {
         muted
         playsInline
         autoPlay
+        onLoadedMetadata={(e) => setCamSize(`${e.currentTarget.videoWidth}×${e.currentTarget.videoHeight}`)}
+        onResize={(e) => setCamSize(`${e.currentTarget.videoWidth}×${e.currentTarget.videoHeight}`)}
         className={`absolute inset-0 h-full w-full ${prefs.fit === "cover" ? "object-cover" : "object-contain"}`}
         style={{ transform: prefs.facing === "user" ? "scaleX(-1)" : undefined }}
       />
@@ -389,6 +398,7 @@ function Recorder() {
                   key={i}
                   className="mb-[0.7em] font-bold"
                   style={{
+                    overflowWrap: "anywhere",
                     fontSize: prefs.fontSize,
                     lineHeight: 1.4,
                     textAlign: prefs.align,
@@ -454,7 +464,7 @@ function Recorder() {
           <p className="text-lg font-bold">Câmera indisponível</p>
           <p className="mt-2 leading-relaxed text-muted">{error}</p>
           <button
-            onClick={() => startCamera(prefs.facing)}
+            onClick={() => startCamera(prefs.facing, prefs.fov)}
             className="mt-5 rounded-full bg-ink px-6 py-3 font-bold text-lav"
           >
             Tentar de novo
@@ -504,7 +514,7 @@ function Recorder() {
 
       {/* ajustes */}
       {showSettings && (
-        <div className="safe-bottom absolute inset-x-0 bottom-0 z-30 mx-auto max-w-xl rounded-t-3xl bg-paper px-6 pt-5 text-ink shadow-2xl">
+        <div className="safe-bottom absolute inset-x-0 bottom-0 z-30 mx-auto max-h-[85dvh] max-w-xl overflow-y-auto rounded-t-3xl bg-paper px-6 pt-5 text-ink shadow-2xl">
           <div className="mb-3 flex items-center justify-between">
             <p className="font-display text-2xl font-bold">Ajustes</p>
             <button onClick={() => setShowSettings(false)} aria-label="Fechar ajustes" className="p-2">
@@ -534,9 +544,33 @@ function Recorder() {
             <Toggle label="Texto espelhado" on={prefs.mirror} onChange={(v) => setPrefs({ ...prefs, mirror: v })} />
             <Toggle label="Alinhar à esquerda" on={prefs.align === "left"} onChange={(v) => setPrefs({ ...prefs, align: v ? "left" : "center" })} />
           </div>
-          <p className="hidden pb-4 text-sm text-muted sm:block">
+          <div className="pb-1">
+            <p className="font-bold">Formato da câmera</p>
+            <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Formato da câmera">
+              {([
+                ["aberto", "Aberto 4:3"],
+                ["largo169", "Widescreen 16:9"],
+                ["auto", "Automático"],
+              ] as const).map(([v, l]) => (
+                <button
+                  key={v}
+                  role="radio"
+                  aria-checked={prefs.fov === v}
+                  onClick={() => setPrefs({ ...prefs, fov: v })}
+                  className={`rounded-full px-4 py-2 text-sm font-bold ${prefs.fov === v ? "bg-ink text-lav" : "bg-ink/5 text-ink"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-sm text-muted">
+              Se a imagem estiver muito perto, troque o formato. Hoje a câmera entrega {camSize || "…"}.
+            </p>
+          </div>
+          <p className="hidden pt-2 text-sm text-muted sm:block">
             No teclado: espaço pausa o texto, R grava, setas mudam a velocidade, + e − mudam a letra.
           </p>
+          <p className="pb-4 pt-2 text-xs text-muted">Versão {APP_VERSION}</p>
         </div>
       )}
 

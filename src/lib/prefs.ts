@@ -10,6 +10,7 @@ export type PrompterPrefs = {
   align: "center" | "left";
   facing: "user" | "environment";
   fit: "contain" | "cover"; // contain = mostra a imagem inteira (igual ao que é gravado)
+  fov: "aberto" | "largo169" | "auto"; // formato pedido à câmera
 };
 
 export const DEFAULT_PREFS: PrompterPrefs = {
@@ -22,9 +23,10 @@ export const DEFAULT_PREFS: PrompterPrefs = {
   align: "center",
   facing: "user",
   fit: "contain",
+  fov: "aberto",
 };
 
-const KEY = "fp.prefs.v2";
+const KEY = "fp.prefs.v3";
 
 export function loadPrefs(): PrompterPrefs {
   try {
