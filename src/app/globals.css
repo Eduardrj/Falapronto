@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* Paleta "gelatina de estúdio" */
+:root {
+  --ink: #24124a;        /* violeta-tinta: textos e fundos fortes */
+  --ink-2: #3a2470;      /* violeta médio */
+  --lav: #ece8ff;        /* lavanda: fundo do app */
+  --paper: #fbfaff;      /* superfícies claras */
+  --band: #ffe14d;       /* faixa amarela da linha de leitura */
+  --tally: #e5383b;      /* vermelho "gravando" — só no gravar */
+  --muted: #6e6491;
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-lav: var(--lav);
+  --color-paper: var(--paper);
+  --color-band: var(--band);
+  --color-tally: var(--tally);
+  --color-muted: var(--muted);
+  --font-sans: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Atkinson Hyperlegible", sans-serif;
+}
+
+html,
+body {
+  background: var(--lav);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 85;
+}
+
+:focus-visible {
+  outline: 3px solid var(--band);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input[type="range"] {
+  accent-color: var(--band);
+}
+
+/* Linha de texto do teleprompter do topo do site */
+@keyframes roll {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+.hero-roll {
+  animation: roll 26s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-roll { animation: none; }
+}
+
+.safe-top { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 12px); }

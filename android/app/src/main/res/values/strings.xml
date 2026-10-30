@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Fala Pronto</string>
+    <string name="title_activity_main">Fala Pronto</string>
+    <string name="package_name">br.com.edsystems.falapronto</string>
+    <string name="custom_url_scheme">br.com.edsystems.falapronto</string>
+</resources>

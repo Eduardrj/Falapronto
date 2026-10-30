@@ -1,0 +1,15 @@
+{
+  "name": "Fala Pronto",
+  "short_name": "Fala Pronto",
+  "description": "Teleprompter no celular e no navegador",
+  "start_url": "/app/",
+  "display": "standalone",
+  "background_color": "#ece8ff",
+  "theme_color": "#24124a",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
