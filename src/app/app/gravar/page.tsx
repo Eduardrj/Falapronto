@@ -67,6 +67,9 @@ function Recorder() {
   const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [camSize, setCamSize] = useState("");
+  const [camAspect, setCamAspect] = useState(0);
+  const [screenAspect, setScreenAspect] = useState(0.5);
+  const [hint, setHint] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -103,7 +106,7 @@ function Recorder() {
   }, [prefs]);
 
   // ---------- câmera ----------
-  const startCamera = useCallback(async (facing: "user" | "environment", fov: PrompterPrefs["fov"] = "aberto") => {
+  const startCamera = useCallback(async (facing: "user" | "environment", fov: PrompterPrefs["fov"] = "largo169") => {
     setError(null);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     try {
@@ -179,6 +182,23 @@ function Recorder() {
     nav.wakeLock?.request("screen").then((l) => (lock = l)).catch(() => {});
     return () => {
       lock?.release().catch(() => {});
+    };
+  }, []);
+
+  function readCam(v: HTMLVideoElement) {
+    if (!v.videoWidth) return;
+    setCamSize(`${v.videoWidth}×${v.videoHeight}`);
+    setCamAspect(v.videoWidth / v.videoHeight);
+  }
+
+  useEffect(() => {
+    const upd = () => setScreenAspect(window.innerWidth / window.innerHeight);
+    upd();
+    window.addEventListener("resize", upd);
+    const t = setTimeout(() => setHint(false), 5000);
+    return () => {
+      window.removeEventListener("resize", upd);
+      clearTimeout(t);
     };
   }, []);
 
@@ -336,6 +356,9 @@ function Recorder() {
   if (!prefs) return <div className="h-dvh bg-black" />;
 
   const lines = text.split(/\n+/).filter((l) => l.trim());
+  // Automático: preenche a tela quando isso corta no máximo 30% da imagem
+  const crop = camAspect ? 1 - Math.min(camAspect, screenAspect) / Math.max(camAspect, screenAspect) : 1;
+  const useCover = prefs.fit === "cover" || (prefs.fit === "auto" && crop <= 0.3);
   const recording = phase === "recording";
 
   return (
@@ -345,9 +368,9 @@ function Recorder() {
         muted
         playsInline
         autoPlay
-        onLoadedMetadata={(e) => setCamSize(`${e.currentTarget.videoWidth}×${e.currentTarget.videoHeight}`)}
-        onResize={(e) => setCamSize(`${e.currentTarget.videoWidth}×${e.currentTarget.videoHeight}`)}
-        className={`absolute inset-0 h-full w-full ${prefs.fit === "cover" ? "object-cover" : "object-contain"}`}
+        onLoadedMetadata={(e) => readCam(e.currentTarget)}
+        onResize={(e) => readCam(e.currentTarget)}
+        className={`absolute inset-0 h-full w-full ${useCover ? "object-cover" : "object-contain"}`}
         style={{ transform: prefs.facing === "user" ? "scaleX(-1)" : undefined }}
       />
 
@@ -356,7 +379,10 @@ function Recorder() {
         <div
           ref={boxRef}
           className="absolute inset-x-0 top-0 mx-auto max-w-4xl cursor-grab touch-none select-none overflow-hidden sm:rounded-b-3xl"
-          style={{ height: `${prefs.boxHeight}%`, background: `rgba(16,8,36,${prefs.bgOpacity})` }}
+          style={{
+            height: `${prefs.boxHeight}%`,
+            background: `linear-gradient(to bottom, rgba(16,8,36,${prefs.bgOpacity}) 0%, rgba(16,8,36,${prefs.bgOpacity}) 72%, rgba(16,8,36,0) 100%)`,
+          }}
           onPointerDown={(e) => {
             (e.target as Element).setPointerCapture?.(e.pointerId);
             dragRef.current = { y: e.clientY, moved: false };
@@ -411,7 +437,7 @@ function Recorder() {
               <div style={{ height: `${prefs.boxHeight}dvh` }} />
             </div>
           </div>
-          {!scrolling && !showSettings && phase !== "countdown" && (
+          {!scrolling && !showSettings && phase !== "countdown" && (recording || hint) && (
             <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm font-bold">
               {recording ? "Pausado. Toque para continuar" : "Toque no texto para ensaiar a rolagem"}
             </div>
@@ -419,35 +445,14 @@ function Recorder() {
         </div>
       )}
 
-      {/* barra superior */}
-      <div
-        className="absolute inset-x-0 flex items-center justify-between px-4"
-        style={{ top: lines.length ? `calc(${prefs.boxHeight}% + 12px)` : "calc(env(safe-area-inset-top) + 12px)" }}
-      >
-        <button
-          onClick={() => router.push(scriptId ? `/app/roteiro/?id=${scriptId}` : "/app/")}
-          disabled={recording}
-          aria-label="Voltar"
-          className="grid h-11 w-11 place-items-center rounded-full bg-black/45 disabled:opacity-30"
-        >
-          <ArrowLeft size={22} />
-        </button>
-        {recording ? (
+      {/* tempo de gravação (fica embaixo para não cobrir o rosto) */}
+      {recording && (
+        <div className="safe-bottom pointer-events-none absolute inset-x-0 bottom-[7.5rem] z-10 flex justify-center">
           <div className="flex items-center gap-2 rounded-full bg-black/55 px-4 py-1.5 font-bold tabular-nums">
             <span className="h-3 w-3 animate-pulse rounded-full bg-tally" /> {formatClock(elapsed)}
           </div>
-        ) : (
-          <p className="max-w-[55%] truncate rounded-full bg-black/45 px-4 py-1.5 text-sm font-bold">{title}</p>
-        )}
-        <button
-          onClick={() => setShowSettings((s) => !s)}
-          aria-label="Ajustes do teleprompter"
-          aria-expanded={showSettings}
-          className="grid h-11 w-11 place-items-center rounded-full bg-black/45"
-        >
-          <Settings2 size={22} />
-        </button>
-      </div>
+        </div>
+      )}
 
       {/* contagem */}
       {phase === "countdown" && (
@@ -479,14 +484,22 @@ function Recorder() {
       )}
 
       {/* controles */}
-      <div className="safe-bottom absolute inset-x-0 bottom-0 flex items-center justify-center gap-10 bg-gradient-to-t from-black/70 to-transparent px-6 pb-5 pt-16">
+      <div className="safe-bottom absolute inset-x-0 bottom-0 flex items-center justify-center gap-4 bg-gradient-to-t from-black/75 to-transparent px-4 pb-5 pt-14 sm:gap-8">
+        <button
+          onClick={() => router.push(scriptId ? `/app/roteiro/?id=${scriptId}` : "/app/")}
+          disabled={recording}
+          aria-label="Voltar"
+          className="grid h-12 w-12 place-items-center rounded-full bg-black/45 disabled:opacity-30"
+        >
+          <ArrowLeft size={22} />
+        </button>
         <button
           onClick={() =>
             setPrefs({ ...prefs, facing: prefs.facing === "user" ? "environment" : "user" })
           }
           disabled={recording || !hasMultipleCams}
           aria-label="Trocar câmera"
-          className="grid h-14 w-14 place-items-center rounded-full bg-black/45 disabled:opacity-30"
+          className="grid h-12 w-12 place-items-center rounded-full bg-black/45 disabled:opacity-30"
         >
           <SwitchCamera size={24} />
         </button>
@@ -506,9 +519,17 @@ function Recorder() {
           onClick={() => setScrolling((s) => !s)}
           disabled={!lines.length}
           aria-label={scrolling ? "Pausar texto" : "Rolar texto"}
-          className="grid h-14 w-14 place-items-center rounded-full bg-black/45 disabled:opacity-30"
+          className="grid h-12 w-12 place-items-center rounded-full bg-black/45 disabled:opacity-30"
         >
           {scrolling ? <Pause size={24} /> : <Play size={24} />}
+        </button>
+        <button
+          onClick={() => setShowSettings((v) => !v)}
+          aria-label="Ajustes do teleprompter"
+          aria-expanded={showSettings}
+          className="grid h-12 w-12 place-items-center rounded-full bg-black/45"
+        >
+          <Settings2 size={22} />
         </button>
       </div>
 
@@ -539,17 +560,36 @@ function Recorder() {
               onChange={changeZoom} />
           )}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 pb-4 pt-2">
-            <Toggle label="Preencher a tela" on={prefs.fit === "cover"} onChange={(v) => setPrefs({ ...prefs, fit: v ? "cover" : "contain" })} />
             <Toggle label="Contagem de 3 s" on={prefs.countdown} onChange={(v) => setPrefs({ ...prefs, countdown: v })} />
             <Toggle label="Texto espelhado" on={prefs.mirror} onChange={(v) => setPrefs({ ...prefs, mirror: v })} />
             <Toggle label="Alinhar à esquerda" on={prefs.align === "left"} onChange={(v) => setPrefs({ ...prefs, align: v ? "left" : "center" })} />
+          </div>
+          <div className="pb-3">
+            <p className="font-bold">Enquadramento na tela</p>
+            <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Enquadramento na tela">
+              {([
+                ["auto", "Automático"],
+                ["contain", "Imagem inteira"],
+                ["cover", "Preencher"],
+              ] as const).map(([v, l]) => (
+                <button
+                  key={v}
+                  role="radio"
+                  aria-checked={prefs.fit === v}
+                  onClick={() => setPrefs({ ...prefs, fit: v })}
+                  className={`rounded-full px-4 py-2 text-sm font-bold ${prefs.fit === v ? "bg-ink text-lav" : "bg-ink/5 text-ink"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="pb-1">
             <p className="font-bold">Formato da câmera</p>
             <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Formato da câmera">
               {([
-                ["aberto", "Aberto 4:3"],
-                ["largo169", "Widescreen 16:9"],
+                ["largo169", "Vídeo 9:16 / 16:9"],
+                ["aberto", "Aberto 3:4 / 4:3"],
                 ["auto", "Automático"],
               ] as const).map(([v, l]) => (
                 <button

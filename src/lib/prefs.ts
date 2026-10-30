@@ -9,24 +9,24 @@ export type PrompterPrefs = {
   countdown: boolean;
   align: "center" | "left";
   facing: "user" | "environment";
-  fit: "contain" | "cover"; // contain = mostra a imagem inteira (igual ao que é gravado)
+  fit: "auto" | "contain" | "cover"; // auto = preenche a tela quando o corte é pequeno
   fov: "aberto" | "largo169" | "auto"; // formato pedido à câmera
 };
 
 export const DEFAULT_PREFS: PrompterPrefs = {
-  fontSize: 38,
+  fontSize: 34,
   speed: 4,
-  bgOpacity: 0.6,
-  boxHeight: 42,
+  bgOpacity: 0.45,
+  boxHeight: 40,
   mirror: false,
   countdown: true,
   align: "center",
   facing: "user",
-  fit: "contain",
-  fov: "aberto",
+  fit: "auto",
+  fov: "largo169",
 };
 
-const KEY = "fp.prefs.v3";
+const KEY = "fp.prefs.v4";
 
 export function loadPrefs(): PrompterPrefs {
   try {
