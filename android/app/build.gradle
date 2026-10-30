@@ -7,7 +7,7 @@ android {
         applicationId "br.com.edsystems.falapronto"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger())
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -17,6 +17,13 @@ android {
         }
     }
     signingConfigs {
+        // chave fixa de teste: permite instalar versões novas por cima sem desinstalar
+        debug {
+            storeFile file("debug.keystore")
+            storePassword "android"
+            keyAlias "androiddebugkey"
+            keyPassword "android"
+        }
         release {
             if (file("release.keystore").exists()) {
                 storeFile file("release.keystore")
@@ -27,6 +34,9 @@ android {
         }
     }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             if (file("release.keystore").exists()) signingConfig signingConfigs.release
             minifyEnabled false

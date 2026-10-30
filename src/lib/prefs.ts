@@ -9,6 +9,7 @@ export type PrompterPrefs = {
   countdown: boolean;
   align: "center" | "left";
   facing: "user" | "environment";
+  fit: "contain" | "cover"; // contain = mostra a imagem inteira (igual ao que é gravado)
 };
 
 export const DEFAULT_PREFS: PrompterPrefs = {
@@ -20,9 +21,10 @@ export const DEFAULT_PREFS: PrompterPrefs = {
   countdown: true,
   align: "center",
   facing: "user",
+  fit: "contain",
 };
 
-const KEY = "fp.prefs.v1";
+const KEY = "fp.prefs.v2";
 
 export function loadPrefs(): PrompterPrefs {
   try {

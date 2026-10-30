@@ -63,6 +63,8 @@ function Recorder() {
   const [result, setResult] = useState<{ take: Take; url: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [hasMultipleCams, setHasMultipleCams] = useState(false);
+  const [zoomRange, setZoomRange] = useState<{ min: number; max: number; step: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -102,18 +104,36 @@ function Recorder() {
   const startCamera = useCallback(async (facing: "user" | "environment") => {
     setError(null);
     streamRef.current?.getTracks().forEach((t) => t.stop());
-    const portrait = window.innerHeight > window.innerWidth;
     try {
+      // 1280x720 evita o modo "recortado" (zoom) que muitos celulares usam em resoluções altas.
+      // O navegador gira para retrato sozinho quando o celular está em pé.
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facing,
-          width: { ideal: portrait ? 1080 : 1920 },
-          height: { ideal: portrait ? 1920 : 1080 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
           frameRate: { ideal: 30 },
         },
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       streamRef.current = stream;
+
+      // Zoom: começa no mínimo (campo de visão mais aberto) quando a câmera permite
+      const track = stream.getVideoTracks()[0];
+      const caps = (track.getCapabilities?.() ?? {}) as MediaTrackCapabilities & {
+        zoom?: { min: number; max: number; step: number };
+      };
+      if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+        const z = caps.zoom.min;
+        await track
+          .applyConstraints({ advanced: [{ zoom: z } as MediaTrackConstraintSet] })
+          .catch(() => {});
+        setZoomRange({ min: caps.zoom.min, max: caps.zoom.max, step: caps.zoom.step || 0.1 });
+        setZoom(z);
+      } else {
+        setZoomRange(null);
+      }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play().catch(() => {});
@@ -124,6 +144,12 @@ function Recorder() {
       setError(cameraError(e));
     }
   }, []);
+
+  function changeZoom(z: number) {
+    setZoom(z);
+    const track = streamRef.current?.getVideoTracks()[0];
+    track?.applyConstraints({ advanced: [{ zoom: z } as MediaTrackConstraintSet] }).catch(() => {});
+  }
 
   useEffect(() => {
     if (!prefs) return;
@@ -312,7 +338,7 @@ function Recorder() {
         muted
         playsInline
         autoPlay
-        className="absolute inset-0 h-full w-full object-cover"
+        className={`absolute inset-0 h-full w-full ${prefs.fit === "cover" ? "object-cover" : "object-contain"}`}
         style={{ transform: prefs.facing === "user" ? "scaleX(-1)" : undefined }}
       />
 
@@ -497,7 +523,13 @@ function Recorder() {
           <Slider label="Fundo atrás do texto" value={prefs.bgOpacity} min={0.15} max={1} step={0.05}
             show={`${Math.round(prefs.bgOpacity * 100)}%`}
             onChange={(v) => setPrefs({ ...prefs, bgOpacity: v })} />
+          {zoomRange && (
+            <Slider label="Zoom da câmera" value={zoom} min={zoomRange.min} max={zoomRange.max} step={zoomRange.step}
+              show={`${zoom.toFixed(1).replace(".", ",")}x`}
+              onChange={changeZoom} />
+          )}
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 pb-4 pt-2">
+            <Toggle label="Preencher a tela" on={prefs.fit === "cover"} onChange={(v) => setPrefs({ ...prefs, fit: v ? "cover" : "contain" })} />
             <Toggle label="Contagem de 3 s" on={prefs.countdown} onChange={(v) => setPrefs({ ...prefs, countdown: v })} />
             <Toggle label="Texto espelhado" on={prefs.mirror} onChange={(v) => setPrefs({ ...prefs, mirror: v })} />
             <Toggle label="Alinhar à esquerda" on={prefs.align === "left"} onChange={(v) => setPrefs({ ...prefs, align: v ? "left" : "center" })} />
