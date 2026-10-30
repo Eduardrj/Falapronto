@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { APP_NAME } from "@/lib/config";
+import { APK_URL, APP_NAME } from "@/lib/config";
 import { isNative } from "@/lib/native";
 
 const DEMO = [
@@ -63,7 +63,7 @@ export default function Landing() {
                 Abrir o teleprompter
               </Link>
               <a
-                href="/fala-pronto.apk"
+                href={APK_URL}
                 className="rounded-full border border-lav/30 px-7 py-4 text-lg font-bold hover:bg-lav/10"
               >
                 Baixar para Android

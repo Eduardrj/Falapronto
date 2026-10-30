@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-24.04
@@ -79,3 +82,14 @@ jobs:
         with:
           name: fala-pronto-apk
           path: dist/fala-pronto.apk
+
+      - name: Publicar APK em Releases (link fixo de download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          gh release create "$TAG" dist/fala-pronto.apk \
+            --title "Fala Pronto (build ${{ github.run_number }})" \
+            --notes "APK de teste gerado automaticamente. Commit ${{ github.sha }}." \
+            --latest \
+          || gh release upload "$TAG" dist/fala-pronto.apk --clobber

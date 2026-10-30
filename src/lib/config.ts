@@ -2,6 +2,7 @@
 export const APP_NAME = "Fala Pronto";
 export const APP_TAGLINE = "Teleprompter no celular e no navegador";
 export const APP_VERSION = "0.3";
+export const APK_URL = "https://github.com/Eduardrj/falapronto/releases/latest/download/fala-pronto.apk";
 export const APP_ID = "br.com.edsystems.falapronto"; // usado no APK (capacitor.config.ts)
 
 // Ritmo médio de fala em português (palavras por minuto)
